@@ -8,6 +8,12 @@ my %opts;
 
 Getopt::GUI::Long::Configure(qw(display_help no_ignore_case no_gui));
 GetOptions(\%opts,
+	   ["GUI:separator",   "Steps to perform (default = all):"],
+
+	   ["GUI:separator",   "Configuration:"],
+	   ["t|temp-directory","Temporary directory to use"],
+	   ["m|mirror-path",   "SVK's mirror path (default=//m)"],
+
 	   ["GUI:separator",   "Other Flags:"],
 	   ["n|dry-run",       "Don't actually do anything; just print the commands"],
 	   ["N|no-clean",      "Don't remove the temporary SVN repository"],
@@ -15,11 +21,16 @@ GetOptions(\%opts,
 
 my $dryrun=$opts{'n'};
 
+if ($#ARGV <= 1) {
+    print STDERR "Both SVKPATH and PROJECT arguments are required\n";
+    exit(1);
+}
+
 my $svkpath=$ARGV[0];
 my $project=$ARGV[1];
-my $tmpdir="/tmp/svktogit.$$";
+my $mirror=$opts{'m'} || "//m";
+my $tmpdir=$opts{'t'} || "/tmp/svktogit.$$";
 my $svnrepo="$tmpdir/svnrepo-$project";
-my $mirror="//m";
 
 if ($project eq '' || $svkpath eq "") {
 
