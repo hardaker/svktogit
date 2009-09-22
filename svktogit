@@ -46,13 +46,13 @@ foreach my $flag (qw(K S T)) {
 ERROR("Invalid usage\n$0 SVKPATH PROJECTNAME")
   if ($project eq '' || $svkpath eq "");
 
+my $cwd = getcwd;
+
 my $madetmp = 0;
 if (START(1,"SETUP")) {
 # setup the new svn repo
     $madetmp = RUN("mkdir $tmpdir") if (! -d $tmpdir);
-    $madetmp = RUN("mkdir $tmpdir") if (! -d $tmpdir);
 
-    my $cwd = getcwd;
     chdir("$tmpdir");
     RUN("svnadmin create svnrepo-$project") if (!$opts{'r'});
     chdir("$cwd");
@@ -73,16 +73,30 @@ if (START('S','SVN to GIT')) {
 }
 
 if (START('T','GIT tags/branches')) {
-    chdir("$project");
-    # XXX:
+    if (!$opts{'n'}) {
+	chdir("$project");
+	open(I,"git branch -r|");
+	while (<I>) {
+	    next if (/trunk/);
+	    chomp;
+	    print "here: $_\n";
+	    if (/tags\/(.*)/) {
+		RUN("git tag $1 tags/$1");
+	    } else {
+		RUN("git branch $1 $1");
+		RUN("git branch -r -d $1");
+	    }
+	}
+	chdir("$cwd");
+    }
 }
 
-print "-- DONE\n";
+print "# DONE! \n";
 
 if (START('C','Cleanup')) {
     if (!$opts{'N'}) {
-	RUN("rm -rf $tmpdir");
-	RUN("svk rm -m "
+	RUN("rm -rf $tmpdir") if ($madetmp);
+	RUN("svk rm -m \"remove temp svk mirror\" $mirror/svktogit-$project");
     } else {
 	print "leaning $tmpdir intact\n";
     }
