@@ -11,8 +11,8 @@ GetOptions(\%opts,
 	   ["GUI:separator",   "Steps to perform (default = all):"],
 
 	   ["GUI:separator",   "Configuration:"],
-	   ["t|temp-directory","Temporary directory to use"],
-	   ["m|mirror-path",   "SVK's mirror path (default=//m)"],
+	   ["t|temp-directory=s","Temporary directory to use"],
+	   ["m|mirror-path=s",   "SVK's mirror path (default=//m)"],
 
 	   ["GUI:separator",   "Other Flags:"],
 	   ["n|dry-run",       "Don't actually do anything; just print the commands"],
