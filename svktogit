@@ -12,6 +12,7 @@ GetOptions(\%opts,
 	   ["K|svk-to-svn",    "Convert the SVK repo to SVN"],
 	   ["S|svn-to-git",    "Git clone the SVN directory to PROJECT"],
 	   ["T|git-tag-branch","Copy over the SVN tags/branches to git tags/branches"],
+	   ["C|clean-up",      "Clean up temporary files, repos and ..."],
 
 	   ["GUI:separator",     "Configuration:"],
 	   ["t|temp-directory=s","Temporary directory to use"],
@@ -29,10 +30,7 @@ GetOptions(\%opts,
 
 my $dryrun=$opts{'n'};
 
-if ($#ARGV < 1) {
-    print STDERR "Both SVKPATH and PROJECT arguments are required\n";
-    exit(1);
-}
+ERROR("Both SVKPATH and PROJECT arguments are required\n") if ($#ARGV < 1);
 
 my $svkpath = $ARGV[0];
 my $project = $ARGV[1];
@@ -45,44 +43,68 @@ foreach my $flag (qw(K S T)) {
     $all = 0 if ($opts{$flag});
 }
 
-if ($project eq '' || $svkpath eq "") {
+ERROR("Invalid usage\n$0 SVKPATH PROJECTNAME")
+  if ($project eq '' || $svkpath eq "");
 
-  print "invalid usage\n";
-  print "$0 SVKPATH PROJECTNAME\n";
-  exit 1;
+my $madetmp = 0;
+if (START(1,"SETUP")) {
+# setup the new svn repo
+    $madetmp = RUN("mkdir $tmpdir") if (! -d $tmpdir);
+    $madetmp = RUN("mkdir $tmpdir") if (! -d $tmpdir);
+
+    my $cwd = getcwd;
+    chdir("$tmpdir");
+    RUN("svnadmin create svnrepo-$project") if (!$opts{'r'});
+    chdir("$cwd");
 }
 
-# setup the new svn repo
-RUN("mkdir $tmpdir");
-
-my $cwd = getcwd;
-chdir("$tmpdir");
-RUN("svnadmin create svnrepo-$project");
-chdir("$cwd");
-
 # mirror it into svk
-RUN("svk mirror file://$svnrepo $mirror/svktogit-$project");
-RUN("svk sync $mirror/svktogit-$project");
+if (START('K','SVK to SVN')) {
+    RUN("svk mirror file://$svnrepo $mirror/svktogit-$project");
+    RUN("svk sync $mirror/svktogit-$project");
 
-# sync the local svk repo to the new svn mirror
-RUN("svk smerge --incremental --baseless $svkpath $mirror/svktogit-$project");
+    # sync the local svk repo to the new svn mirror
+    RUN("svk smerge --incremental --baseless $svkpath $mirror/svktogit-$project");
+}
 
 # git clone it back now
-RUN("git svn clone -s file://$svnrepo $project");
+if (START('S','SVN to GIT')) {
+    RUN("git svn clone -s file://$svnrepo $project");
+}
+
+if (START('T','GIT tags/branches')) {
+    chdir("$project");
+    # XXX:
+}
 
 print "-- DONE\n";
 
-if (!$opts{'N'}) {
-    RUN("rm -rf $tmpdir");
-} else {
-    print "leaning $tmpdir intact\n";
+if (START('C','Cleanup')) {
+    if (!$opts{'N'}) {
+	RUN("rm -rf $tmpdir");
+	RUN("svk rm -m "
+    } else {
+	print "leaning $tmpdir intact\n";
+    }
 }
 
 sub RUN {
     print ("  ",@_,"\n");
     if (!$dryrun) {
 	system(@_);
-	exit if ($? != 0);
+	ERROR("--- Failed to run successfully.  Returned " .
+	      ($?/256) . "\n") if ($? != 0);
     }
+    return 1;
 }
 
+sub START {
+    return 0 if (!($_[0] eq '1' || $all || $opts{$_[0]}));
+    print "# ", $_[1],"\n";
+    return 1;
+}
+
+sub ERROR {
+    print STDERR @_,"\n";
+    exit 1;
+}
