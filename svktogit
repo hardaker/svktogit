@@ -1,0 +1,50 @@
+#!/usr/bin/perl
+
+use strict;
+use Cwd;
+
+my $dryrun=0;
+
+my $svkpath=$ARGV[0];
+my $project=$ARGV[1];
+my $tmpdir="/tmp/svktogit.$$";
+my $svnrepo="$tmpdir/svnrepo-$project";
+my $mirror="//m";
+
+if ($project eq '' || $svkpath eq "") {
+
+  print "invalid usage\n";
+  print "$0 SVKPATH PROJECTNAME\n";
+  exit 1;
+}
+
+# setup the new svn repo
+RUN("mkdir $tmpdir");
+
+my $cwd = getcwd;
+chdir("$tmpdir");
+RUN("svnadmin create svnrepo-$project");
+chdir("$cwd");
+
+# mirror it into svk
+RUN("svk mirror file://$svnrepo $mirror/svktogit-$project");
+RUN("svk sync $mirror/svktogit-$project");
+
+# sync the local svk repo to the new svn mirror
+RUN("svk smerge --incremental --baseless $svkpath $mirror/svktogit-$project");
+
+# git clone it back now
+RUN("git svn clone -s file://$svnrepo $project");
+
+print "-- DONE\n";
+
+#RUN("rm -rf $tmpdir");
+
+sub RUN {
+    print (@_,"\n");
+    if (!$dryrun) {
+	system(@_);
+	exit if ($? != 0);
+    }
+}
+
