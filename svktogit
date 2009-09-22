@@ -1,9 +1,19 @@
 #!/usr/bin/perl
 
 use strict;
+use Getopt::GUI::Long;
 use Cwd;
 
-my $dryrun=0;
+my %opts;
+
+Getopt::GUI::Long::Configure(qw(display_help no_ignore_case no_gui));
+GetOptions(\%opts,
+	   ["GUI:separator",   "Other Flags:"],
+	   ["n|dry-run",       "Don't actually do anything; just print the commands"],
+	   ["N|no-clean",      "Don't remove the temporary SVN repository"],
+	  );
+
+my $dryrun=$opts{'n'};
 
 my $svkpath=$ARGV[0];
 my $project=$ARGV[1];
@@ -38,7 +48,11 @@ RUN("git svn clone -s file://$svnrepo $project");
 
 print "-- DONE\n";
 
-#RUN("rm -rf $tmpdir");
+if (!$opts{'N'}) {
+    RUN("rm -rf $tmpdir");
+} else {
+    print "leaning $tmpdir intact\n";
+}
 
 sub RUN {
     print (@_,"\n");
