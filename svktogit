@@ -9,28 +9,41 @@ my %opts;
 Getopt::GUI::Long::Configure(qw(display_help no_ignore_case no_gui));
 GetOptions(\%opts,
 	   ["GUI:separator",   "Steps to perform (default = all):"],
+	   ["K|svk-to-svn",    "Convert the SVK repo to SVN"],
+	   ["S|svn-to-git",    "Git clone the SVN directory to PROJECT"],
+	   ["T|git-tag-branch","Copy over the SVN tags/branches to git tags/branches"],
 
-	   ["GUI:separator",   "Configuration:"],
+	   ["GUI:separator",     "Configuration:"],
 	   ["t|temp-directory=s","Temporary directory to use"],
 	   ["m|mirror-path=s",   "SVK's mirror path (default=//m)"],
+	   ["r|svn-repo-path=s", "Temporary? SVN repo path to use"],
 
 	   ["GUI:separator",   "Other Flags:"],
 	   ["n|dry-run",       "Don't actually do anything; just print the commands"],
 	   ["N|no-clean",      "Don't remove the temporary SVN repository"],
+
+
+
+	   ['GUI:otherargs_text', 'SVKPATH PROJECTNAME']
 	  );
 
 my $dryrun=$opts{'n'};
 
-if ($#ARGV <= 1) {
+if ($#ARGV < 1) {
     print STDERR "Both SVKPATH and PROJECT arguments are required\n";
     exit(1);
 }
 
-my $svkpath=$ARGV[0];
-my $project=$ARGV[1];
-my $mirror=$opts{'m'} || "//m";
-my $tmpdir=$opts{'t'} || "/tmp/svktogit.$$";
-my $svnrepo="$tmpdir/svnrepo-$project";
+my $svkpath = $ARGV[0];
+my $project = $ARGV[1];
+my $mirror  = $opts{'m'} || "//m";
+my $tmpdir  = $opts{'t'} || "/tmp/svktogit.$$";
+my $svnrepo = $opts{'r'} || "$tmpdir/svnrepo-$project";
+
+my $all = 1;
+foreach my $flag (qw(K S T)) {
+    $all = 0 if ($opts{$flag});
+}
 
 if ($project eq '' || $svkpath eq "") {
 
@@ -66,7 +79,7 @@ if (!$opts{'N'}) {
 }
 
 sub RUN {
-    print (@_,"\n");
+    print ("  ",@_,"\n");
     if (!$dryrun) {
 	system(@_);
 	exit if ($? != 0);
